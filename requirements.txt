@@ -1,0 +1,7 @@
+fastapi[standard]
+motor
+uvicorn
+sqlmodel
+passlib
+python-dotenv
+pymongo[srv]
