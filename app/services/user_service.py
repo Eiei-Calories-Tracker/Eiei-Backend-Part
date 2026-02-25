@@ -1,47 +1,54 @@
-from bson.objectid import ObjectId
-from db.database import student_helper
-from db.database import student_collection
+from sqlmodel import Session, select
+from models.user import Student, StudentCreate, StudentUpdate
+from typing import List, Optional
 
-# Retrieve all students present in the database
-async def retrieve_students():
-    students = []
-    async for student in student_collection.find():
-        students.append(student_helper(student))
+
+def retrieve_students(session: Session) -> List[Student]:
+    """Retrieve all students from the database"""
+    statement = select(Student)
+    students = session.exec(statement).all()
     return students
 
 
-# Add a new student into to the database
-async def add_student(student_data: dict) -> dict:
-    student = await student_collection.insert_one(student_data)
-    new_student = await student_collection.find_one({"_id": student.inserted_id})
-    return student_helper(new_student)
+def add_student(session: Session, student_data: StudentCreate) -> Student:
+    """Add a new student to the database"""
+    student = Student.model_validate(student_data)
+    session.add(student)
+    session.commit()
+    session.refresh(student)
+    return student
 
 
-# Retrieve a student with a matching ID
-async def retrieve_student(id: str) -> dict:
-    student = await student_collection.find_one({"_id": ObjectId(id)})
-    if student:
-        return student_helper(student)
+def retrieve_student(session: Session, student_id: int) -> Optional[Student]:
+    """Retrieve a student with a matching ID"""
+    student = session.get(Student, student_id)
+    print("get",student)
+    return student
 
 
-# Update a student with a matching ID
-async def update_student(id: str, data: dict):
-    # Return false if an empty request body is sent.
-    if len(data) < 1:
+def update_student(session: Session, student_id: int, student_data: StudentUpdate) -> Optional[Student]:
+    """Update a student with a matching ID"""
+    student = session.get(Student, student_id)
+    if not student:
+        return None
+    
+    # Update only provided fields
+    student_dict = student_data.model_dump(exclude_unset=True)
+    for key, value in student_dict.items():
+        setattr(student, key, value)
+    
+    session.add(student)
+    session.commit()
+    session.refresh(student)
+    return student
+
+
+def delete_student(session: Session, student_id: int) -> bool:
+    """Delete a student from the database"""
+    student = session.get(Student, student_id)
+    if not student:
         return False
-    student = await student_collection.find_one({"_id": ObjectId(id)})
-    if student:
-        updated_student = await student_collection.update_one(
-            {"_id": ObjectId(id)}, {"$set": data}
-        )
-        if updated_student:
-            return True
-        return False
-
-
-# Delete a student from the database
-async def delete_student(id: str):
-    student = await student_collection.find_one({"_id": ObjectId(id)})
-    if student:
-        await student_collection.delete_one({"_id": ObjectId(id)})
-        return True
+    
+    session.delete(student)
+    session.commit()
+    return True
