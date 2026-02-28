@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
+from sqlmodel import select
 from models.record import FoodRecord, FoodRecordCreate
 from models.food import FoodNutrient
 from services import food_service
@@ -112,3 +113,21 @@ def update_food_record(
     session.commit()
     session.refresh(record)
     return record
+
+def get_food_records_by_date(
+    session: Session,
+    user_id: int,
+    target_date: datetime
+) -> List[FoodRecord]:
+    """Retrieve all food records for a specific user on a specific date (UTC)"""
+    # Create start and end of the day in UTC
+    start_of_day = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
+    end_of_day = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, 999999)
+
+    statement = select(FoodRecord).where(
+        FoodRecord.user_id == user_id,
+        FoodRecord.eating_time >= start_of_day,
+        FoodRecord.eating_time <= end_of_day
+    ).order_by(FoodRecord.eating_time.asc())
+    
+    return session.scalars(statement).all()

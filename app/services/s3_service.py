@@ -41,3 +41,21 @@ async def upload_image_to_s3(file: UploadFile) -> str:
     except Exception as e:
         print(f"S3 Upload failed: {e}")
         return f"failed_{unique_filename}"
+
+def generate_presigned_url(image_key: str, expiration: int = 3600) -> str:
+    """Generate a pre-signed URL for an S3 object"""
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+        # Mock URL for development
+        return f"https://mock-s3.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}/{image_key}?token=mock"
+
+    s3 = get_s3_client()
+    try:
+        response = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': AWS_STORAGE_BUCKET_NAME, 'Key': image_key},
+            ExpiresIn=expiration
+        )
+        return response
+    except Exception as e:
+        print(f"Failed to generate pre-signed URL: {e}")
+        return ""

@@ -175,3 +175,47 @@ async def edit_food_record(
             "food_record_id": updated_record.id
         }
     }
+
+@router.get("/food_record/{date}")
+async def get_food_records(
+    date: str, # Format YYYY-MM-DD
+    current_user: UserAccount = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Retrieve all food records for a specific date with pre-signed image URLs"""
+    # 1. Parse date
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        return {
+            "status": 400,
+            "message": "Invalid date format. Use YYYY-MM-DD"
+        }
+
+    # 2. Fetch records
+    records = food_record_service.get_food_records_by_date(session, current_user.id, target_date)
+    
+    # 3. Format response and generate pre-signed URLs
+    food_record_on_day = []
+    for record in records:
+        image_url = ""
+        if record.image_key:
+            image_url = s3_service.generate_presigned_url(record.image_key)
+            
+        food_record_on_day.append({
+            "food_id": record.nutrition_id,
+            "food_name": record.food_name,
+            "image_url": image_url,
+            "calories": record.sum_calories,
+            "carb": record.sum_carb,
+            "protein": record.sum_protein,
+            "fat": record.sum_fat,
+            "quantity": record.quantity,
+            "eating_time": record.eating_time.isoformat()
+        })
+        
+    return {
+        "data": {
+            "food_record_on_day": food_record_on_day
+        }
+    }
