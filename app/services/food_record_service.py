@@ -1,3 +1,5 @@
+from datetime import datetime
+from typing import Optional
 from sqlalchemy.orm import Session
 from models.record import FoodRecord, FoodRecordCreate
 from models.food import FoodNutrient
@@ -63,6 +65,49 @@ def save_food_record(
         eating_time=record_data.eating_time
     )
     
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return record
+
+def update_food_record(
+    session: Session,
+    user_id: int,
+    food_record_id: int,
+    quantity: Optional[float] = None,
+    eating_time: Optional[datetime] = None
+) -> Optional[FoodRecord]:
+    """Update food record and recalculate nutrients if quantity changes"""
+    # 1. Fetch record and verify ownership
+    record = session.get(FoodRecord, food_record_id)
+    if not record or record.user_id != user_id:
+        return None
+    
+    # 2. Update fields
+    if eating_time is not None:
+        record.eating_time = eating_time
+        
+    if quantity is not None:
+        # Recalculate sums based on original unit nutrients
+        # We get unit nutrients by dividing current sum by current quantity
+        # Or more safely, fetch from FoodNutrient if nutrition_id exists
+        if record.nutrition_id:
+            food = session.get(FoodNutrient, record.nutrition_id)
+            if food:
+                record.sum_protein = food.protein * quantity
+                record.sum_fat = food.fat * quantity
+                record.sum_carb = food.carb * quantity
+                record.sum_calories = food.calories * quantity
+        else:
+            # Fallback: simple ratio if nutrition_id is missing (should not happen usually)
+            ratio = quantity / record.quantity if record.quantity > 0 else 0
+            record.sum_protein *= ratio
+            record.sum_fat *= ratio
+            record.sum_carb *= ratio
+            record.sum_calories *= ratio
+            
+        record.quantity = quantity
+        
     session.add(record)
     session.commit()
     session.refresh(record)

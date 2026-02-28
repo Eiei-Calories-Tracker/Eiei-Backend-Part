@@ -137,3 +137,41 @@ async def predict_food(
             "confidence_score": confidence
         }
     }
+
+@router.patch("/food_record/{food_record_id}")
+async def edit_food_record(
+    food_record_id: int,
+    quantity: Optional[float] = Form(None),
+    eating_time: Optional[str] = Form(None),
+    current_user: UserAccount = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Update an existing food record (quantity/time) with nutrient recalculation"""
+    # 1. Parse eating_time if provided
+    dt_eating_time = None
+    if eating_time:
+        try:
+            dt_eating_time = datetime.fromisoformat(eating_time.replace('Z', '+00:00'))
+        except ValueError:
+            pass
+
+    # 2. Perform update
+    updated_record = food_record_service.update_food_record(
+        session,
+        current_user.id,
+        food_record_id,
+        quantity=quantity,
+        eating_time=dt_eating_time
+    )
+    
+    if not updated_record:
+        return {
+            "status": 404,
+            "message": "Food record not found or access denied"
+        }
+        
+    return {
+        "data": {
+            "food_record_id": updated_record.id
+        }
+    }
