@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from datetime import datetime
+from typing import Optional
 from dependencies import get_session, get_current_user
 from models.account import UserAccount
-from services import food_service, ai_service
+from models.record import FoodRecordCreate, FoodRecord # Added FoodRecord
+from services import food_service, ai_service, s3_service, food_record_service
 
-router = APIRouter(prefix="/food_nutrients", tags=["food"])
+router = APIRouter(prefix="", tags=["food"])
 
-@router.get("/")
+@router.get("/food_nutrients")
 def get_all_food_nutrients(
     current_user: UserAccount = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -30,6 +33,59 @@ def get_all_food_nutrients(
     return {
         "data": {
             "all_food_nutrients": all_food_nutrients
+        }
+    }
+
+@router.post("/food_record")
+async def create_food_record(
+    is_user_create: bool = Form(...),
+    food_id: Optional[int] = Form(None),
+    new_food_name: Optional[str] = Form(None),
+    new_food_calories: Optional[float] = Form(None),
+    new_food_carb: Optional[float] = Form(None),
+    new_food_protein: Optional[float] = Form(None),
+    new_food_fat: Optional[float] = Form(None),
+    quantity: float = Form(...),
+    eating_time: str = Form(...),
+    image: UploadFile = File(...),
+    current_user: UserAccount = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Save a food log record with image upload to S3"""
+    # 1. Upload image to S3
+    image_key = await s3_service.upload_image_to_s3(image)
+    
+    # 2. Parse eating_time
+    try:
+        dt_eating_time = datetime.fromisoformat(eating_time.replace('Z', '+00:00'))
+    except ValueError:
+        dt_eating_time = datetime.utcnow()
+
+    # 3. Prepare record data structure
+    record_create = FoodRecordCreate(
+        is_user_create=is_user_create,
+        food_id=food_id,
+        new_food_name=new_food_name,
+        new_food_calories=new_food_calories,
+        new_food_carb=new_food_carb,
+        new_food_protein=new_food_protein,
+        new_food_fat=new_food_fat,
+        quantity=quantity,
+        eating_time=dt_eating_time
+    )
+    
+    # 4. Save record and calculate nutrients
+    record = food_record_service.save_food_record(
+        session, 
+        current_user.id, 
+        record_create, 
+        image_key
+    )
+    
+    return {
+        "status": 201,
+        "data": {
+            "food_record_id": record.id
         }
     }
 
