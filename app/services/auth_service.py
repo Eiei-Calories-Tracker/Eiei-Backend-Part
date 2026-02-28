@@ -24,7 +24,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def get_user_by_email(session: Session, email: str) -> Optional[UserAccount]:
     """Check if a user exists with the given email"""
     statement = select(UserAccount).where(UserAccount.email == email)
-    return session.exec(statement).first()
+    return session.scalar(statement)
 
 def create_user_account(session: Session, user_data: UserAccountCreate) -> UserAccount:
     """Create a new user account with hashed password"""

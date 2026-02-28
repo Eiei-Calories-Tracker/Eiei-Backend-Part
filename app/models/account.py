@@ -39,3 +39,9 @@ class LoginResponse(SQLModel):
     access_token: str
     token_type: str = "bearer"
     user_id: int
+
+class UserAccountUpdate(SQLModel):
+    activity_factor: Optional[ActivityLevel] = None
+    weight: Optional[float] = Field(default=None, gt=0)
+    height: Optional[float] = Field(default=None, gt=0)
+    target: Optional[WeightTarget] = None

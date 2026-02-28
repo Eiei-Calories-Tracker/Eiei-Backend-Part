@@ -4,7 +4,7 @@ from typing import List
 
 from models.user import ErrorResponseModel, ResponseModel, StudentCreate, StudentUpdate, StudentRead
 from services import user_service
-from db.database import get_session
+from dependencies import get_session
 
 router = APIRouter(prefix="/students", tags=["students"])
 
