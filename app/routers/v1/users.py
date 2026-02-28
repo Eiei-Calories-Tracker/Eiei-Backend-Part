@@ -25,3 +25,21 @@ def update_profile(
             "target": updated_user.target
         }
     }
+
+
+@router.get("/")
+def get_profile(current_user: UserAccount = Depends(get_current_user)):
+    """Retrieve current user profile"""
+    return {
+        "data": {
+            "email": current_user.email,
+            "first_name": current_user.first_name,
+            "last_name": current_user.last_name,
+            "gender": current_user.gender,
+            "activity_factor": current_user.activity_factor,
+            "weight": current_user.weight,
+            "height": current_user.height,
+            "target": current_user.target,
+            "birth_date": current_user.birth_date
+        }
+    }
