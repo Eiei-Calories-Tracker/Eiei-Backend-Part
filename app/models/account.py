@@ -30,3 +30,12 @@ class UserAccountCreate(UserAccountBase):
 
 class UserAccountRead(SQLModel):
     user_id: int
+
+class LoginRequest(SQLModel):
+    email: str
+    password: str
+
+class LoginResponse(SQLModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: int
