@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 from dependencies import get_session
 from models.account import UserAccountCreate, UserAccountRead, LoginRequest, LoginResponse
-from services import auth_service
-
+from services import auth_service, nutrient_service
 router = APIRouter(prefix="", tags=["authentication"]) # Removed prefix 'register' to accommodate both
 
 @router.post("/register", response_model=UserAccountRead, status_code=status.HTTP_201_CREATED)
@@ -23,6 +22,8 @@ def register_user(
     # 2. Create new user
     new_user = auth_service.create_user_account(session, user_data)
     
+    # add food nutrition record
+    nutrient_service.add_calories_target(session, new_user.id)
     # 3. Return response in the requested format
     return {"user_id": new_user.id}
 

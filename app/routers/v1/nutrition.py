@@ -1,0 +1,165 @@
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from datetime import timedelta
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlmodel import select
+from dependencies import get_session
+from datetime import date, timedelta, datetime
+from models.nutrient import WeekNutritionRequest, calories_target_history, WeekNutritionResponse, CummulativeWeekNutrients
+from models.record import FoodRecord
+from services import nutrient_service
+router = APIRouter(prefix="", tags=["nutrition"])
+
+
+@router.get("/nutrients/{user_id}/{date}")
+async def get_week_nutrition(
+    user_id: int,
+    date: date,
+    session: Session = Depends(get_session)
+) -> list[WeekNutritionResponse]:
+    result: list[WeekNutritionResponse] = []
+    target_date = date
+    week_list = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    weekday = target_date.weekday()
+    start_of_week = target_date - timedelta(days=(weekday + 1) % 7)
+    end_of_week = start_of_week + timedelta(days=6)
+
+
+
+    food_range_statement = (
+        select(
+            func.date(FoodRecord.eating_time).label("day"),
+            func.sum(FoodRecord.sum_calories * FoodRecord.quantity).label("calories"),
+            func.sum(FoodRecord.sum_protein * FoodRecord.quantity).label("protein"),
+            func.sum(FoodRecord.sum_carb * FoodRecord.quantity).label("carb"),
+            func.sum(FoodRecord.sum_fat * FoodRecord.quantity).label("fat")
+        )
+        .where(
+            func.date(FoodRecord.eating_time) >= func.date(start_of_week),
+            func.date(FoodRecord.eating_time) <= func.date(end_of_week),
+            FoodRecord.user_id == user_id
+        )
+        .group_by(func.date(FoodRecord.eating_time))
+        .order_by(func.date(FoodRecord.eating_time))
+    )
+
+    food_result = session.execute(food_range_statement).all()
+    food_map = {row.day: row for row in food_result}
+
+    
+    prev_statement = (
+        select(calories_target_history)
+        .where(func.date(calories_target_history.created_date) < func.date(start_of_week),
+               calories_target_history.user_id == user_id)
+        .order_by(calories_target_history.created_date.desc())
+        .limit(1)
+    )
+    range_statement = (
+        select(calories_target_history)
+        .where(
+            func.date(calories_target_history.created_date) >= func.date(start_of_week),
+            func.date(calories_target_history.created_date) <= func.date(end_of_week),
+            calories_target_history.user_id == user_id
+        )
+        .order_by(calories_target_history.created_date.desc())
+    )
+
+    prev_result : calories_target_history = session.execute(prev_statement).scalars().first()
+    range_result : list[calories_target_history] = session.execute(range_statement).scalars().all()
+    
+    range_map = {row.created_date.day : row for row in range_result}
+    if prev_result is not None:
+        range_map[-1] = prev_result
+    elif len(range_map) > 0:
+        min_day = min(range_map.keys())
+        range_map[-1] = range_map[min_day]
+    
+    
+    
+    cum_calories = 0
+    cum_protein = 0
+    cum_carb = 0
+    cum_fat = 0
+    if range_map.get(-1) is None:
+        upper_statement = select(calories_target_history).where(func.date(calories_target_history.created_date) > func.date(end_of_week), calories_target_history.user_id == user_id).order_by(calories_target_history.created_date).limit(1)
+        upper_result = session.execute(upper_statement).scalars().first()
+        if upper_result is None:
+            nutrient_service.add_calories_target(session, user_id)
+            new_row = session.execute(
+                select(calories_target_history)
+                .order_by(calories_target_history.created_date.desc())
+                .limit(1)
+            ).scalars().first()
+            range_map[-1] = new_row
+        else:
+            range_map[-1] = upper_result
+    
+    for i in range(7):
+        current_date = start_of_week + timedelta(days=i)
+        
+        day_key = current_date.day
+
+        possible_keys = [k for k in range_map.keys() if k <= day_key]
+
+        nearest_key = max(possible_keys) if possible_keys else -1
+
+        limit_row = range_map.get(nearest_key)
+        
+        data = food_map.get(current_date)
+        calories = data.calories if data else 0
+        protein = data.protein if data else 0
+        carb = data.carb if data else 0
+        fat = data.fat if data else 0
+        cum_calories += calories
+        cum_protein += protein
+        cum_carb += carb
+        cum_fat += fat
+        
+        result.append(
+            WeekNutritionResponse(
+                cummulative_week_nutrients=CummulativeWeekNutrients(
+                    calories=round(cum_calories, 2),
+                    protein=round(cum_protein, 2),
+                    carb=round(cum_carb, 2),
+                    fat=round(cum_fat, 2),
+                ),
+                cummulative_current_day_nutrients=CummulativeWeekNutrients(
+                    calories=round(calories, 2),
+                    protein=round(protein, 2),
+                    carb=round(carb, 2),
+                    fat=round(fat, 2),
+                ),
+                target_week_nutrients=CummulativeWeekNutrients(
+                    calories=round(limit_row.calories_target_per_week, 2) if limit_row else 0,
+                    protein=round(limit_row.protein_target_per_week, 2) if limit_row else 0,
+                    carb=round(limit_row.carb_target_per_week, 2) if limit_row else 0,
+                    fat=round(limit_row.fat_target_per_week, 2) if limit_row else 0,
+                ),
+                target_current_day_nutrients=CummulativeWeekNutrients(
+                    calories=round(limit_row.calories_target_per_day, 2) if limit_row else 0,
+                    protein=round(limit_row.protein_target_per_day, 2) if limit_row else 0,
+                    carb=round(limit_row.carb_target_per_day, 2) if limit_row else 0,
+                    fat=round(limit_row.fat_target_per_day, 2) if limit_row else 0,
+                ),
+                current_date=current_date,
+                week_number=current_date.isocalendar().week,
+                day_state = (
+                    1
+                    if limit_row
+                    and calories >= limit_row.calories_target_per_day
+                    and protein >= limit_row.protein_target_per_day
+                    and carb >= limit_row.carb_target_per_day
+                    and fat >= limit_row.fat_target_per_day
+                    else 2
+                    if current_date == datetime.now().date()
+                    else 0
+                ),
+                day=week_list[i]
+            )
+        )
+    return result
+    
+    
+    

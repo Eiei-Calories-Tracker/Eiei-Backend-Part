@@ -4,6 +4,7 @@ from routers import users
 from routers.v1 import auth as auth_v1
 from routers.v1 import users as users_v1
 from routers.v1 import food as food_v1
+from routers.v1 import nutrition as nutrition_v1
 from db.database import create_db_and_tables
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +36,7 @@ app.include_router(users.router)
 app.include_router(auth_v1.router, prefix="/api/v1")
 app.include_router(users_v1.router, prefix="/api/v1")
 app.include_router(food_v1.router, prefix="/api/v1")
+app.include_router(nutrition_v1.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
