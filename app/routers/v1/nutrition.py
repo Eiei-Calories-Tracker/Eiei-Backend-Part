@@ -101,12 +101,16 @@ async def get_week_nutrition(
         
         day_key = current_date.day
 
-        possible_keys = [k for k in range_map.keys() if k <= day_key]
-
-        nearest_key = max(possible_keys) if possible_keys else -1
-
-        limit_row = range_map.get(nearest_key)
+        lower_possible_keys = [k for k in range_map.keys() if k <= day_key]
+        upper_possible_keys = [k for k in range_map.keys() if k >= day_key]
         
+        
+        nearest_key_lower = max(lower_possible_keys) if lower_possible_keys else -1
+        nearest_key_upper = min(upper_possible_keys) if upper_possible_keys else -1
+        # print("nearest_key_upper", nearest_key_upper)
+        # print("nearest_key_lower", nearest_key_lower)
+        limit_row_per_day = range_map.get(nearest_key_lower)
+        limit_row_per_week = range_map.get(nearest_key_upper)
         data = food_map.get(current_date)
         calories = data.calories if data else 0
         protein = data.protein if data else 0
@@ -132,26 +136,26 @@ async def get_week_nutrition(
                     fat=round(fat, 2),
                 ),
                 target_week_nutrients=CummulativeWeekNutrients(
-                    calories=round(limit_row.calories_target_per_week, 2) if limit_row else 0,
-                    protein=round(limit_row.protein_target_per_week, 2) if limit_row else 0,
-                    carb=round(limit_row.carb_target_per_week, 2) if limit_row else 0,
-                    fat=round(limit_row.fat_target_per_week, 2) if limit_row else 0,
+                    calories=round(limit_row_per_week.calories_target_per_week, 2) if limit_row_per_week else 0,
+                    protein=round(limit_row_per_week.protein_target_per_week, 2) if limit_row_per_week else 0,
+                    carb=round(limit_row_per_week.carb_target_per_week, 2) if limit_row_per_week else 0,
+                    fat=round(limit_row_per_week.fat_target_per_week, 2) if limit_row_per_week else 0,
                 ),
                 target_current_day_nutrients=CummulativeWeekNutrients(
-                    calories=round(limit_row.calories_target_per_day, 2) if limit_row else 0,
-                    protein=round(limit_row.protein_target_per_day, 2) if limit_row else 0,
-                    carb=round(limit_row.carb_target_per_day, 2) if limit_row else 0,
-                    fat=round(limit_row.fat_target_per_day, 2) if limit_row else 0,
+                    calories=round(limit_row_per_day.calories_target_per_day, 2) if limit_row_per_day else 0,
+                    protein=round(limit_row_per_day.protein_target_per_day, 2) if limit_row_per_day else 0,
+                    carb=round(limit_row_per_day.carb_target_per_day, 2) if limit_row_per_day else 0,
+                    fat=round(limit_row_per_day.fat_target_per_day, 2) if limit_row_per_day else 0,
                 ),
                 current_date=current_date,
                 week_number=current_date.isocalendar().week,
                 day_state = (
                     1
-                    if limit_row
-                    and calories >= limit_row.calories_target_per_day
-                    and protein >= limit_row.protein_target_per_day
-                    and carb >= limit_row.carb_target_per_day
-                    and fat >= limit_row.fat_target_per_day
+                    if limit_row_per_day
+                    and calories >= limit_row_per_day.calories_target_per_day
+                    and protein >= limit_row_per_day.protein_target_per_day
+                    and carb >= limit_row_per_day.carb_target_per_day
+                    and fat >= limit_row_per_day.fat_target_per_day
                     else 2
                     if current_date == datetime.now().date()
                     else 0
