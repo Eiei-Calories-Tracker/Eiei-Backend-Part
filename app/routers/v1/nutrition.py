@@ -9,6 +9,7 @@ from datetime import date, timedelta, datetime
 from models.nutrient import WeekNutritionRequest, calories_target_history, WeekNutritionResponse, CummulativeWeekNutrients
 from models.record import FoodRecord
 from services import nutrient_service
+from models.account import UserAccount
 router = APIRouter(prefix="", tags=["nutrition"])
 
 
@@ -26,7 +27,7 @@ async def get_week_nutrition(
     start_of_week = target_date - timedelta(days=(weekday + 1) % 7)
     end_of_week = start_of_week + timedelta(days=6)
 
-
+    
 
     food_range_statement = (
         select(

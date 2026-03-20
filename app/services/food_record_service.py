@@ -131,3 +131,4 @@ def get_food_records_by_date(
     ).order_by(FoodRecord.eating_time.asc())
     
     return session.scalars(statement).all()
+
