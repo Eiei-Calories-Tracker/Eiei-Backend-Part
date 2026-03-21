@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from passlib.context import CryptContext
@@ -17,6 +17,7 @@ class UserAccountBase(SQLModel):
     height: float = Field(gt=0)  # cm
     target: WeightTarget
     birth_date: date
+    created_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserAccount(UserAccountBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

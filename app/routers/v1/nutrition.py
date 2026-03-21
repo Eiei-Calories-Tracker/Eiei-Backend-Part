@@ -27,6 +27,9 @@ async def get_week_nutrition(
     start_of_week = target_date - timedelta(days=(weekday + 1) % 7)
     end_of_week = start_of_week + timedelta(days=6)
 
+    find_user_statement = select(UserAccount.created_date).where(UserAccount.id == user_id)
+    query_result = session.execute(find_user_statement).scalars().first()
+
     
 
     food_range_statement = (
@@ -121,7 +124,7 @@ async def get_week_nutrition(
         cum_protein += protein
         cum_carb += carb
         cum_fat += fat
-        
+        week_result = (current_date - query_result.date()).days // 7
         result.append(
             WeekNutritionResponse(
                 cummulative_week_nutrients=CummulativeWeekNutrients(
@@ -149,7 +152,7 @@ async def get_week_nutrition(
                     fat=round(limit_row_per_day.fat_target_per_day, 2) if limit_row_per_day else 0,
                 ),
                 current_date=current_date,
-                week_number=current_date.isocalendar().week,
+                week_number = (week_result + 1) if query_result and week_result >= 0 else 0,
                 day_state = (
                     1
                     if limit_row_per_day
