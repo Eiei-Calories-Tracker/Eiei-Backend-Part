@@ -47,13 +47,15 @@ async def create_food_record(
     new_food_fat: Optional[float] = Form(None),
     quantity: float = Form(...),
     eating_time: str = Form(...),
-    image: UploadFile = File(...),
+    image: Optional[UploadFile] = File(None),
     current_user: UserAccount = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     """Save a food log record with image upload to S3"""
     # 1. Upload image to S3
-    image_key = await s3_service.upload_image_to_s3(image)
+    image_key = None
+    if image:
+        image_key = await s3_service.upload_image_to_s3(image)
     
     # 2. Parse eating_time
     try:
