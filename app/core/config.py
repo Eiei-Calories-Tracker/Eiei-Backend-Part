@@ -8,7 +8,7 @@ PORT = int(os.getenv("PORT"))
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-for-dev-only")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", 7))
-AI_PREDICT_URL = os.getenv("AI_PREDICT_URL", "https://punnawitack-eiei-calorie-tracker-api.hf.space/predict/")
+AI_PREDICT_URL = os.getenv("AI_PREDICT_URL")
 
 # AWS S3 Settings
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")

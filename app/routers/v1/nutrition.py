@@ -82,10 +82,10 @@ async def get_week_nutrition(
     
     
     
-    cum_calories = 0
-    cum_protein = 0
-    cum_carb = 0
-    cum_fat = 0
+    cum_calories = 0.0
+    cum_protein = 0.0
+    cum_carb = 0.0
+    cum_fat = 0.0
     if range_map.get(-1) is None:
         upper_statement = select(calories_target_history).where(func.date(calories_target_history.created_date) > func.date(end_of_week), calories_target_history.user_id == user_id).order_by(calories_target_history.created_date).limit(1)
         upper_result = session.execute(upper_statement).scalars().first()
@@ -116,10 +116,10 @@ async def get_week_nutrition(
         limit_row_per_day = range_map.get(nearest_key_lower)
         limit_row_per_week = range_map.get(nearest_key_upper)
         data = food_map.get(current_date)
-        calories = data.calories if data else 0
-        protein = data.protein if data else 0
-        carb = data.carb if data else 0
-        fat = data.fat if data else 0
+        calories = round(data.calories, 2) if data else 0
+        protein = round(data.protein, 2) if data else 0
+        carb = round(data.carb, 2) if data else 0
+        fat = round(data.fat, 2) if data else 0
         cum_calories += calories
         cum_protein += protein
         cum_carb += carb
@@ -156,10 +156,10 @@ async def get_week_nutrition(
                 day_state = (
                     1
                     if limit_row_per_day
-                    and calories >= limit_row_per_day.calories_target_per_day
-                    and protein >= limit_row_per_day.protein_target_per_day
-                    and carb >= limit_row_per_day.carb_target_per_day
-                    and fat >= limit_row_per_day.fat_target_per_day
+                    and calories <= round(limit_row_per_day.calories_target_per_day*1.10, 2) and calories >= round(limit_row_per_day.calories_target_per_day*0.90, 2)
+                    and protein <= round(limit_row_per_day.protein_target_per_day*1.10, 2) and protein >= round(limit_row_per_day.protein_target_per_day*0.90, 2)
+                    and carb <= round(limit_row_per_day.carb_target_per_day*1.10, 2) and carb >= round(limit_row_per_day.carb_target_per_day*0.90, 2)
+                    and fat <= round(limit_row_per_day.fat_target_per_day*1.10, 2) and fat >= round(limit_row_per_day.fat_target_per_day*0.90, 2)
                     else 2
                     if current_date == datetime.now().date()
                     else 0

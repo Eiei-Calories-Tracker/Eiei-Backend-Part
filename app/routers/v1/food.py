@@ -105,8 +105,8 @@ async def predict_food(
             "message": "AI Prediction service failed"
         }
     
-    food_name = ai_result.get("best_prediction")
-    confidence = ai_result.get("best_confidence")
+    food_name = ai_result.get("prediction")
+    confidence = ai_result.get("confidence")
     
     # 2. Lookup nutrients in our DB
     food_record = food_service.get_food_by_name(session, food_name)
