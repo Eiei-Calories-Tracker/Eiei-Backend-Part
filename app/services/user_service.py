@@ -61,3 +61,4 @@ def update_user_profile(session: Session, user: UserAccount, update_data: UserAc
     session.commit()
     session.refresh(user)
     return user
+

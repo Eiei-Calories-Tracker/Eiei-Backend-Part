@@ -10,6 +10,7 @@ from models.nutrient import WeekNutritionRequest, calories_target_history, WeekN
 from models.record import FoodRecord
 from services import nutrient_service
 from models.account import UserAccount
+from collections import defaultdict
 router = APIRouter(prefix="", tags=["nutrition"])
 
 
@@ -72,7 +73,15 @@ async def get_week_nutrition(
 
     prev_result : calories_target_history = session.execute(prev_statement).scalars().first()
     range_result : list[calories_target_history] = session.execute(range_statement).scalars().all()
-    
+    day_rows_map = defaultdict(list)
+    for row in range_result:
+        day_key = row.created_date.day
+        day_rows_map[day_key].append(row)
+
+    latest_per_day = {}
+    for day, rows in day_rows_map.items():
+        latest_row = max(rows, key=lambda r: r.created_date)
+        latest_per_day[day] = latest_row
     range_map = {row.created_date.day : row for row in range_result}
     if prev_result is not None:
         range_map[-1] = prev_result
@@ -113,7 +122,9 @@ async def get_week_nutrition(
         nearest_key_upper = min(upper_possible_keys) if upper_possible_keys else -1
         # print("nearest_key_upper", nearest_key_upper)
         # print("nearest_key_lower", nearest_key_lower)
-        limit_row_per_day = range_map.get(nearest_key_lower)
+        limit_row_per_day = latest_per_day.get(day_key)
+        if not limit_row_per_day:
+            limit_row_per_day = range_map.get(nearest_key_lower)
         limit_row_per_week = range_map.get(nearest_key_upper)
         data = food_map.get(current_date)
         calories = round(data.calories, 2) if data else 0

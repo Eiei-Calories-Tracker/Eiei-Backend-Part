@@ -46,6 +46,8 @@ class UserAccountUpdate(SQLModel):
     weight: Optional[float] = Field(default=None, gt=0)
     height: Optional[float] = Field(default=None, gt=0)
     target: Optional[WeightTarget] = None
+    birth_date: Optional[date] = None
+    gender: Optional[Gender] = None
 
 class UserProfileRead(UserAccountBase):
     pass
