@@ -36,10 +36,10 @@ async def get_week_nutrition(
     food_range_statement = (
         select(
             func.date(FoodRecord.eating_time).label("day"),
-            func.sum(FoodRecord.sum_calories * FoodRecord.quantity).label("calories"),
-            func.sum(FoodRecord.sum_protein * FoodRecord.quantity).label("protein"),
-            func.sum(FoodRecord.sum_carb * FoodRecord.quantity).label("carb"),
-            func.sum(FoodRecord.sum_fat * FoodRecord.quantity).label("fat")
+            func.sum(FoodRecord.sum_calories).label("calories"),
+            func.sum(FoodRecord.sum_protein).label("protein"),
+            func.sum(FoodRecord.sum_carb).label("carb"),
+            func.sum(FoodRecord.sum_fat).label("fat")
         )
         .where(
             func.date(FoodRecord.eating_time) >= func.date(start_of_week),

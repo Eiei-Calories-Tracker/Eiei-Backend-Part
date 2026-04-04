@@ -132,3 +132,9 @@ def get_food_records_by_date(
     
     return session.scalars(statement).all()
 
+def get_food_record_by_id(
+    session: Session,
+    food_record_id: int
+) -> Optional[FoodRecord]:
+    """Retrieve a single food record by ID"""
+    return session.get(FoodRecord, food_record_id)

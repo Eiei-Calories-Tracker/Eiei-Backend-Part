@@ -1,6 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
+from models.food import FoodNutrient, FoodNutrientRead
+
+def get_thai_time():
+    """Returns the current Thailand time (UTC+7) as a naive datetime"""
+    return datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None)
 
 class FoodRecordBase(SQLModel):
     food_name: str
@@ -12,10 +17,16 @@ class FoodRecordBase(SQLModel):
     user_id: int = Field(foreign_key="useraccount.id")
     nutrition_id: Optional[int] = Field(default=None, foreign_key="foodnutrient.id")
     image_key: Optional[str] = None
-    eating_time: datetime = Field(default_factory=datetime.utcnow)
+    eating_time: datetime = Field(default_factory=get_thai_time)
 
 class FoodRecord(FoodRecordBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    
+    food_nutrient: Optional[FoodNutrient] = Relationship()
+
+class FoodRecordRead(SQLModel):
+    food_record: FoodRecord
+    food_nutrient: Optional[FoodNutrientRead] = None
 
 class FoodRecordCreate(SQLModel):
     is_user_create: bool

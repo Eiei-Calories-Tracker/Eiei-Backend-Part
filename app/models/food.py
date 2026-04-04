@@ -13,7 +13,7 @@ class FoodNutrient(FoodNutrientBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
 class FoodNutrientRead(SQLModel):
-    food_id: int
+    food_id: int = Field(validation_alias="id")
     food_name: str
     calories: float
     carb: float

@@ -1,13 +1,27 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from dependencies import get_session, get_current_user
 from models.account import UserAccount
-from models.record import FoodRecordCreate, FoodRecord # Added FoodRecord
+from models.record import FoodRecordCreate, FoodRecord, FoodRecordRead # Added FoodRecord
 from services import food_service, ai_service, s3_service, food_record_service
 
 router = APIRouter(prefix="", tags=["food"])
+THAI_TZ = timezone(timedelta(hours=7))
+
+def to_thai_naive_datetime(iso_str: str) -> datetime:
+    """Converts a UTC ISO string (e.g. from .toISOString()) into a naive Thailand datetime"""
+    if not iso_str:
+        return datetime.now(THAI_TZ).replace(tzinfo=None)
+    try:
+        # Handle 'Z' from .toISOString()
+        clean_iso = iso_str.replace('Z', '+00:00')
+        dt_aware = datetime.fromisoformat(clean_iso)
+        # Convert to Thailand time and strip TZ
+        return dt_aware.astimezone(THAI_TZ).replace(tzinfo=None)
+    except Exception:
+        return datetime.now(THAI_TZ).replace(tzinfo=None)
 
 @router.get("/food_nutrients")
 def get_all_food_nutrients(
@@ -57,11 +71,8 @@ async def create_food_record(
     if image:
         image_key = await s3_service.upload_image_to_s3(image)
     
-    # 2. Parse eating_time
-    try:
-        dt_eating_time = datetime.fromisoformat(eating_time.replace('Z', '+00:00'))
-    except ValueError:
-        dt_eating_time = datetime.utcnow()
+    # 2. Parse eating_time to Thai naive datetime
+    dt_eating_time = to_thai_naive_datetime(eating_time)
 
     # 3. Prepare record data structure
     record_create = FoodRecordCreate(
@@ -149,13 +160,8 @@ async def edit_food_record(
     session: Session = Depends(get_session)
 ):
     """Update an existing food record (quantity/time) with nutrient recalculation"""
-    # 1. Parse eating_time if provided
-    dt_eating_time = None
-    if eating_time:
-        try:
-            dt_eating_time = datetime.fromisoformat(eating_time.replace('Z', '+00:00'))
-        except ValueError:
-            pass
+    # 1. Parse eating_time if provided to Thai naive datetime
+    dt_eating_time = to_thai_naive_datetime(eating_time) if eating_time else None
 
     # 2. Perform update
     updated_record = food_record_service.update_food_record(
@@ -178,46 +184,88 @@ async def edit_food_record(
         }
     }
 
-@router.get("/food_record/{date}")
-async def get_food_records(
-    date: str, # Format YYYY-MM-DD
+# @router.get("/food_record/{date}")
+# async def get_food_records(
+#     date: str, # Format YYYY-MM-DD
+#     current_user: UserAccount = Depends(get_current_user),
+#     session: Session = Depends(get_session)
+# ):
+#     """Retrieve all food records for a specific date with pre-signed image URLs"""
+#     # 1. Parse date
+#     try:
+#         target_date = datetime.strptime(date, "%Y-%m-%d")
+#     except ValueError:
+#         return {
+#             "status": 400,
+#             "message": "Invalid date format. Use YYYY-MM-DD"
+#         }
+
+#     # 2. Fetch records
+#     records = food_record_service.get_food_records_by_date(session, current_user.id, target_date)
+    
+#     # 3. Format response and generate pre-signed URLs
+#     food_record_on_day = []
+#     for record in records:
+#         image_url = ""
+#         if record.image_key:
+#             image_url = s3_service.generate_presigned_url(record.image_key)
+            
+#         food_record_on_day.append({
+#             "food_id": record.nutrition_id,
+#             "food_name": record.food_name,
+#             "image_url": image_url,
+#             "calories": record.sum_calories,
+#             "carb": record.sum_carb,
+#             "protein": record.sum_protein,
+#             "fat": record.sum_fat,
+#             "quantity": record.quantity,
+#             "eating_time": record.eating_time.isoformat()
+#         })
+        
+#     return {
+#         "data": {
+#             "food_record_on_day": food_record_on_day
+#         }
+#     }
+@router.get("/food_record/{user_id}/{date}")
+async def get_food_record(
+    user_id: int,
+    date: datetime,
+    session: Session=Depends(get_session),
+    current_user: UserAccount = Depends(get_current_user),
+    
+) -> list[FoodRecord]:
+    foodRecord : list[FoodRecord] = food_record_service.get_food_records_by_date(session, user_id, date)
+    for i in range(len(foodRecord)):
+        foodRecord[i].image_key = s3_service.generate_presigned_url(foodRecord[i].image_key)
+    return foodRecord
+
+@router.get("/food_record/{food_record_id}", response_model=FoodRecordRead)
+async def get_food_record_by_id(
+    food_record_id: int,
     current_user: UserAccount = Depends(get_current_user),
     session: Session = Depends(get_session)
-):
-    """Retrieve all food records for a specific date with pre-signed image URLs"""
-    # 1. Parse date
-    try:
-        target_date = datetime.strptime(date, "%Y-%m-%d")
-    except ValueError:
-        return {
-            "status": 400,
-            "message": "Invalid date format. Use YYYY-MM-DD"
-        }
-
-    # 2. Fetch records
-    records = food_record_service.get_food_records_by_date(session, current_user.id, target_date)
+) -> FoodRecordRead:
+    """Retrieve a single food record by ID with ownership verification"""
+    record = food_record_service.get_food_record_by_id(session, food_record_id)
     
-    # 3. Format response and generate pre-signed URLs
-    food_record_on_day = []
-    for record in records:
-        image_url = ""
-        if record.image_key:
-            image_url = s3_service.generate_presigned_url(record.image_key)
-            
-        food_record_on_day.append({
-            "food_id": record.nutrition_id,
-            "food_name": record.food_name,
-            "image_url": image_url,
-            "calories": record.sum_calories,
-            "carb": record.sum_carb,
-            "protein": record.sum_protein,
-            "fat": record.sum_fat,
-            "quantity": record.quantity,
-            "eating_time": record.eating_time.isoformat()
-        })
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Food record not found"
+        )
         
-    return {
-        "data": {
-            "food_record_on_day": food_record_on_day
-        }
-    }
+    if record.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this record"
+        )
+        
+    # Generate presigned URL for the image
+    if record.image_key:
+        record.image_key = s3_service.generate_presigned_url(record.image_key)
+        
+    return FoodRecordRead(
+        food_record=record,
+        food_nutrient=record.food_nutrient
+    )
