@@ -167,10 +167,10 @@ async def get_week_nutrition(
                 day_state = (
                     1
                     if limit_row_per_day
-                    and calories <= round(limit_row_per_day.calories_target_per_day*1.10, 2) and calories >= round(limit_row_per_day.calories_target_per_day*0.90, 2)
-                    and protein <= round(limit_row_per_day.protein_target_per_day*1.10, 2) and protein >= round(limit_row_per_day.protein_target_per_day*0.90, 2)
-                    and carb <= round(limit_row_per_day.carb_target_per_day*1.10, 2) and carb >= round(limit_row_per_day.carb_target_per_day*0.90, 2)
-                    and fat <= round(limit_row_per_day.fat_target_per_day*1.10, 2) and fat >= round(limit_row_per_day.fat_target_per_day*0.90, 2)
+                    and calories <= round(limit_row_per_day.calories_target_per_day*1.20, 2) and calories >= round(limit_row_per_day.calories_target_per_day*0.80, 2)
+                    and protein <= round(limit_row_per_day.protein_target_per_day*1.20, 2) and protein >= round(limit_row_per_day.protein_target_per_day*0.80, 2)
+                    and carb <= round(limit_row_per_day.carb_target_per_day*1.20, 2) and carb >= round(limit_row_per_day.carb_target_per_day*0.80, 2)
+                    and fat <= round(limit_row_per_day.fat_target_per_day*1.20, 2) and fat >= round(limit_row_per_day.fat_target_per_day*0.80, 2)
                     else 2
                     if current_date == datetime.now().date()
                     else 0
