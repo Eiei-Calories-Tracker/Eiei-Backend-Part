@@ -1,22 +1,21 @@
- 
-import pymongo
-import motor.motor_asyncio
-
+from sqlmodel import SQLModel, create_engine, Session
 from core.config import DATABASE_URL
 
-client = motor.motor_asyncio.AsyncIOMotorClient(DATABASE_URL)
-db = client.get_database("college")
-student_collection = db.get_collection("eiei-calories-tracker-db")
+from sqlalchemy.orm import sessionmaker
 
-# helpers
+# Create engine for PostgreSQL
+engine = create_engine(DATABASE_URL, echo=True)
+
+# SessionLocal for traditional session handling
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def student_helper(student) -> dict:
-    return {
-        "id": str(student["_id"]),
-        "fullname": student["fullname"],
-        "email": student["email"],
-        "course_of_study": student["course_of_study"],
-        "year": student["year"],
-        "GPA": student["gpa"],
-    }
+def create_db_and_tables():
+    """Create all tables in the database"""
+    SQLModel.metadata.create_all(engine)
+
+
+def get_session():
+    """Dependency to get database session"""
+    with Session(engine) as session:
+        yield session
